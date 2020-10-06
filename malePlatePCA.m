@@ -92,21 +92,41 @@ if useTierpsy256
     n_nonFeatVar = 2;
 end
 
-%% Analyze male features with PCA
+%% Analyze features with PCA
 
 % extract featureMat and strain info
+% for male features
 maleFeatureMat = table2array(maleFeatureTable(:,n_nonFeatVar_male+1:end));
+% for all plate features
 featureMat = table2array(featureTable(:,n_nonFeatVar+1:end));
+% for CB4856 plate features (so we can plot in CB4856's own PC space)
+CB4856LogInd = strcmp(featureTable.strainHermaphrodite,'CB4856');
+CB4856FeatureTable = featureTable(CB4856LogInd,:);
+CB4856FeatureMat = table2array(CB4856FeatureTable(:,n_nonFeatVar+1:end));
+% for MY23 plate features (so we can plot in MY23's own PC space)
+MY23LogInd = strcmp(featureTable.strainHermaphrodite,'MY23');
+MY23FeatureTable = featureTable(MY23LogInd,:);
+MY23FeatureMat = table2array(MY23FeatureTable(:,n_nonFeatVar+1:end));
 
 % pre-process feature matrix for PCA
+%
 [maleFeatureMat,~] = preprocessFeatMat(maleFeatureMat);
 n_feats_male = size(maleFeatureMat,2);
+%
 [featureMat,~] = preprocessFeatMat(featureMat);
 n_feats = size(featureMat,2);
+%
+[CB4856FeatureMat,~] = preprocessFeatMat(CB4856FeatureMat);
+CB4856_n_feats = size(CB4856FeatureMat,2);
+%
+[MY23FeatureMat,~] = preprocessFeatMat(MY23FeatureMat);
+MY23_n_feats = size(MY23FeatureMat,2);
 
 % do pca
 [pc_male, score_male, ~, ~, explained_male] = pca(maleFeatureMat);
 [pc, score, ~, ~, explained] = pca(featureMat);
+[pc_CB4856, score_CB4856, ~, ~, explained_CB4856] = pca(CB4856FeatureMat);
+[pc_MY23, score_MY23, ~, ~, explained_MY23] = pca(MY23FeatureMat);
 
 %% Male plots
 % plot first two PCs and colour by different male strains
@@ -145,6 +165,7 @@ xlabel(['PC1 (' num2str(round(explained_male(1))) ')%'])
 ylabel(['PC2 (' num2str(round(explained_male(2))) ')%'])
 legend({'CB4856 same strain','MY23 same strain','CB4856 different strains','MY23 different strains'})
 title(['PCA plot with ' num2str(n_feats_male) ' features'])
+set(gca,'FontSize',15,'LineWidth',1)
 
 % Plot first three PCs and colour by different male strains
 figure;
@@ -161,8 +182,8 @@ title(['PCA plot with ' num2str(n_feats_male) ' features'])
 
 % plot first two PCs and colour by different strains
 strainFig = figure; hold on
-CB4856LogInd = strcmp(featureTable.strainHermaphrodite,'CB4856');
-MY23LogInd = strcmp(featureTable.strainHermaphrodite,'MY23');
+% CB4856LogInd = strcmp(featureTable.strainHermaphrodite,'CB4856');
+% MY23LogInd = strcmp(featureTable.strainHermaphrodite,'MY23');
 plot(score(CB4856LogInd,1),score(CB4856LogInd,2),'r.')
 plot(score(MY23LogInd,1),score(MY23LogInd,2),'b.')
 xlabel(['PC1 (' num2str(round(explained(1))) ')%'])
@@ -195,7 +216,39 @@ xlabel(['PC1 (' num2str(round(explained(1))) ')%'])
 ylabel(['PC2 (' num2str(round(explained(2))) ')%'])
 legend({'CB4856 same strain','MY23 same strain','CB4856 different strains','MY23 different strains'})
 title(['PCA plot with ' num2str(n_feats) ' features'])
+set(gca,'FontSize',15,'LineWidth',1)
 
+%% Plate plots (showing selfing vs. cross mating set up in each strain's own PC space)
+% CB4856 mating with males from the same vs. different strains in CB4856 plate PC space
+CB4856CombineFig = figure; hold on
+CB4856OwnPCSelfLogInd = strcmp(CB4856FeatureTable.strainMale,'CB4856');
+CB4856OwnPCCrossLogInd = strcmp(CB4856FeatureTable.strainMale,'MY23');
+plot(score_CB4856(CB4856OwnPCSelfLogInd,1),score_CB4856(CB4856OwnPCSelfLogInd,2),'ro')
+plot(score_CB4856(CB4856OwnPCCrossLogInd,1),score_CB4856(CB4856OwnPCCrossLogInd,2),'r+')
+xlabel(['PC1 (' num2str(round(explained_CB4856(1))) ')%'])
+ylabel(['PC2 (' num2str(round(explained_CB4856(2))) ')%'])
+legend({'CB4856 same strain','CB4856 different strains'})
+title(['PCA plot with ' num2str(CB4856_n_feats) ' features'])
+set(gca,'FontSize',15,'LineWidth',1)
+
+% MY23 mating with males from the same vs. different strains in MY23 plate PC space
+MY23CombineFig = figure; hold on
+MY23OwnPCSelfLogInd = strcmp(MY23FeatureTable.strainMale,'MY23');
+MY23OwnPCCrossLogInd = strcmp(MY23FeatureTable.strainMale,'CB4856');
+plot(score_MY23(MY23OwnPCSelfLogInd,1),score_MY23(MY23OwnPCSelfLogInd,2),'bo')
+plot(score_MY23(MY23OwnPCCrossLogInd,1),score_MY23(MY23OwnPCCrossLogInd,2),'b+')
+xlabel(['PC1 (' num2str(round(explained_MY23(1))) ')%'])
+ylabel(['PC2 (' num2str(round(explained_MY23(2))) ')%'])
+legend({'MY23 same strain','MY23 different strains'})
+title(['PCA plot with ' num2str(MY23_n_feats) ' features'])
+set(gca,'FontSize',15,'LineWidth',1)
+
+%% Check to see what's inside the first PC of the hermaphrodite traj since they separate so very well
+% see what's inside the first PC
+[feat,featInd] = sort(pc(:,1)); % PC1 
+disp('Top 10 features inside PC1 for hermaphrodite features are:')
+featureTable.Properties.VariableNames(featInd(1:10))' % display top 10 feats inside PC1
+ 
 %% Find the frame with a particular traj number
 % clc
 % filename = '/Volumes/diskAshurDT/behavgenom/Serena/wildMating/Results/20180819_wildMating/wildMating5.3_MY23_self_MY23_self_PC1_Ch2_19082018_131627_featuresN.hdf5';
@@ -220,3 +273,4 @@ title(['PCA plot with ' num2str(n_feats) ' features'])
 % No overt difference in trajectory level Tierpsy features (full or 256) for males mating with hermaphrodites from its own strain vs. a different strain.
 % Plate level Tierpsy feautures (full or 256) for hermaphrodites separate well between the two strains.
 % No overt difference in plate level Tierpsy features (full or 256) in the prescence of a male from the hermaphrodites' own strain vs. a different strain.
+% The lack of difference in plate level Tierpsy features still holds even when plotting each hermaphrodite strain in its own PC space.
